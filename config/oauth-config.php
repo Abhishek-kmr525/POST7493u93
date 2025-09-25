@@ -1,6 +1,15 @@
 <?php
 // config/oauth-config.php - Enhanced OAuth Configuration with Database Integration
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Define SITE_URL if not already defined
+if (!defined('SITE_URL')) {
+    define('SITE_URL', 'https://postautomator.com');
+}
+
 // Skip database include if already included
 if (!isset($db)) {
     require_once __DIR__ . '/database-config.php';
@@ -10,46 +19,68 @@ if (!isset($db)) {
 $oauthSettings = [];
 try {
     if (isset($db) && $db) {
+        // First, ensure the table exists
+        $tableCheck = $db->query("SHOW TABLES LIKE 'api_settings'");
+        if ($tableCheck->rowCount() === 0) {
+            throw new Exception('api_settings table does not exist');
+        }
+        
         $stmt = $db->prepare("SELECT * FROM api_settings WHERE id = 1");
         $stmt->execute();
         $oauthSettings = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        
+        if (empty($oauthSettings)) {
+            error_log('Warning: No OAuth settings found in database.');
+        }
     }
 } catch (Exception $e) {
-    // If DB not available, use hardcoded values
-    error_log('Could not load OAuth settings from DB: ' . $e->getMessage());
+    error_log('OAuth settings error: ' . $e->getMessage());
+    // Continue with empty settings - will use fallback values
 }
 
 // Google OAuth Configuration
 // Use database values if available and not empty, otherwise use hardcoded values
-define('GOOGLE_CLIENT_ID', 
-    (!empty($oauthSettings['google_oauth_client_id'])) 
-        ? $oauthSettings['google_oauth_client_id'] 
-        : ''
-);
+if (!defined('GOOGLE_CLIENT_ID')) {
+    define('GOOGLE_CLIENT_ID', 
+        (!empty($oauthSettings['google_oauth_client_id'])) 
+            ? $oauthSettings['google_oauth_client_id'] 
+            : 'YOUR_GOOGLE_CLIENT_ID'  // Fallback value
+    );
+}
 
-define('GOOGLE_CLIENT_SECRET', 
-    (!empty($oauthSettings['google_oauth_client_secret'])) 
-        ? $oauthSettings['google_oauth_client_secret'] 
-        : ''
-);
+if (!defined('GOOGLE_CLIENT_SECRET')) {
+    define('GOOGLE_CLIENT_SECRET', 
+        (!empty($oauthSettings['google_oauth_client_secret'])) 
+            ? $oauthSettings['google_oauth_client_secret'] 
+            : 'YOUR_GOOGLE_CLIENT_SECRET'  // Fallback value
+    );
+}
 
-define('GOOGLE_REDIRECT_URI', SITE_URL . '/customer/oauth/google-callback.php');
+if (!defined('GOOGLE_REDIRECT_URI')) {
+    define('GOOGLE_REDIRECT_URI', SITE_URL . '/customer/oauth/google-callback.php');
+}
 
 // LinkedIn OAuth Configuration
 // Use database values if available and not empty, otherwise use hardcoded values
-define('LINKEDIN_CLIENT_ID', 
-    (!empty($oauthSettings['linkedin_client_id'])) 
-        ? $oauthSettings['linkedin_client_id'] 
-        : ''
-);
+if (!defined('LINKEDIN_CLIENT_ID')) {
+    define('LINKEDIN_CLIENT_ID', 
+        (!empty($oauthSettings['linkedin_client_id'])) 
+            ? $oauthSettings['linkedin_client_id'] 
+            : 'YOUR_LINKEDIN_CLIENT_ID'  // Fallback value
+    );
+}
 
-define('LINKEDIN_CLIENT_SECRET', 
-    (!empty($oauthSettings['linkedin_client_secret'])) 
-        ? $oauthSettings['linkedin_client_secret'] 
-        : ''
-);
+if (!defined('LINKEDIN_CLIENT_SECRET')) {
+    define('LINKEDIN_CLIENT_SECRET', 
+        (!empty($oauthSettings['linkedin_client_secret'])) 
+            ? $oauthSettings['linkedin_client_secret'] 
+            : 'YOUR_LINKEDIN_CLIENT_SECRET'  // Fallback value
+    );
+}
 
-define('LINKEDIN_REDIRECT_URI', SITE_URL . '/customer/oauth/linkedin-callback.php');
+if (!defined('LINKEDIN_REDIRECT_URI')) {
+    define('LINKEDIN_REDIRECT_URI', SITE_URL . '/customer/oauth/linkedin-callback.php');
+}
 
 // Session management
 function ensureSession() {
