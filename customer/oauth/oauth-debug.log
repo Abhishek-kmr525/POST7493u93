@@ -1,0 +1,7 @@
+[2025-09-24 17:38:47] === LinkedIn OAuth Callback Started ===
+[2025-09-24 17:38:47] Session started successfully
+[2025-09-24 17:38:47] No OAuth errors detected
+[2025-09-24 17:38:47] Received state: ...
+[2025-09-24 17:38:47] Session state: 6a2b48a2c9...
+[2025-09-24 17:38:47] ❌ FATAL ERROR: Invalid state parameter
+[2025-09-24 17:38:47] Stack trace: #0 {main}

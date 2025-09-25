@@ -1,0 +1,21 @@
+RewriteEngine On
+
+# Redirect HTTP to HTTPS (uncomment for production)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+# Hide sensitive files
+<Files ~ "\.(env|log|sql|json)$">
+    Order deny,allow
+    Deny from all
+</Files>
+
+# Block access to config directory
+RedirectMatch 403 ^/config/
+RedirectMatch 403 ^/cron/logs/

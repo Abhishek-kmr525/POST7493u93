@@ -1,0 +1,20 @@
+<IfModule mod_authz_core.c>
+    # Allow access to PHP callback files in this directory
+    <FilesMatch "\.(php)$">
+        Require all granted
+    </FilesMatch>
+
+    # Deny direct access to any other file types by default
+    <FilesMatch "^(?!.*\.php$).*$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+    <FilesMatch "\.(php)$">
+        Allow from all
+    </FilesMatch>
+    # No-op fallback
+</IfModule>
