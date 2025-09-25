@@ -145,8 +145,21 @@ function getGoogleLoginUrl() {
     $_SESSION['oauth_state'] = $state;
     $_SESSION['oauth_timestamp'] = time();
     
-    // Set cookie as fallback
-    setcookie('oauth_state', $state, time() + 3600, '/', '', false, true);
+    // Set cookie as fallback with matching settings
+    setcookie('oauth_state', $state, [
+        'expires' => time() + 3600,
+        'path' => '/',
+        'domain' => '',
+        'secure' => true,  // HTTPS only
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    
+    // Debug logging
+    error_log("=== Google Login URL Generated ===");
+    error_log("Session ID: " . session_id());
+    error_log("Generated State: " . $state);
+    error_log("Timestamp: " . time());
     
     $params = [
         'client_id' => GOOGLE_CLIENT_ID,
