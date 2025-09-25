@@ -79,12 +79,16 @@ if (!defined('LINKEDIN_REDIRECT_URI')) {
 // Session management
 function ensureSession() {
     if (session_status() === PHP_SESSION_NONE) {
-        session_start([
-            'cookie_lifetime' => 3600,
-            'cookie_secure' => true,  // Changed to true for HTTPS
-            'cookie_httponly' => true,
-            'cookie_samesite' => 'Lax'
+        // Use more permissive session settings
+        session_set_cookie_params([
+            'lifetime' => 3600,
+            'path' => '/',
+            'domain' => '.postautomator.com',  // Note the dot prefix for subdomain compatibility
+            'secure' => true,
+            'httponly' => true,
+            'samesite' => 'Lax'
         ]);
+        session_start();
     }
 }
 
@@ -145,12 +149,16 @@ function getGoogleLoginUrl() {
     $_SESSION['oauth_state'] = $state;
     $_SESSION['oauth_timestamp'] = time();
     
-    // Set cookie as fallback with matching settings
+    // Force session write
+    session_write_close();
+    session_start();
+    
+    // Set cookie with domain
     setcookie('oauth_state', $state, [
         'expires' => time() + 3600,
         'path' => '/',
-        'domain' => '',
-        'secure' => true,  // HTTPS only
+        'domain' => '.postautomator.com',  // Match domain
+        'secure' => true,
         'httponly' => true,
         'samesite' => 'Lax'
     ]);
@@ -158,8 +166,8 @@ function getGoogleLoginUrl() {
     // Debug logging
     error_log("=== Google Login URL Generated ===");
     error_log("Session ID: " . session_id());
-    error_log("Generated State: " . $state);
-    error_log("Timestamp: " . time());
+    error_log("Generated State: " . substr($state, 0, 20) . "...");
+    error_log("Session oauth_state: " . substr($_SESSION['oauth_state'] ?? 'NONE', 0, 20) . "...");
     
     $params = [
         'client_id' => GOOGLE_CLIENT_ID,
@@ -353,19 +361,20 @@ function createOrUpdateOAuthCustomer($provider, $userData) {
         $name = '';
         $providerId = '';
         $profilePicture = '';
+        $accessToken = '';
         
-       if ($provider === 'google') {
-    $email = $userData['email'] ?? '';
-    $name = $userData['name'] ?? '';
-    $providerId = $userData['id'] ?? '';
-    $profilePicture = $userData['picture'] ?? '';
-} elseif ($provider === 'linkedin') {
-    // NEW: Handle OpenID Connect format
-    $email = $userData['email'] ?? '';
-    $name = $userData['name'] ?? '';
-    $providerId = $userData['id'] ?? '';
-    $profilePicture = $userData['picture'] ?? '';
-}
+        if ($provider === 'google') {
+            $email = $userData['email'] ?? '';
+            $name = $userData['name'] ?? '';
+            $providerId = $userData['id'] ?? '';
+            $profilePicture = $userData['picture'] ?? '';
+        } elseif ($provider === 'linkedin') {
+            $email = $userData['email'] ?? '';
+            $name = $userData['name'] ?? '';
+            $providerId = $userData['id'] ?? '';
+            $profilePicture = $userData['picture'] ?? '';
+        }
+        
         if (empty($email)) {
             throw new Exception('Email not provided by OAuth provider');
         }
@@ -391,13 +400,58 @@ function createOrUpdateOAuthCustomer($provider, $userData) {
             $trialEndsAt = date('Y-m-d H:i:s', strtotime('+14 days'));
             
             $stmt = $db->prepare("
-                INSERT INTO customers (name, email, oauth_provider, oauth_id, profile_picture, trial_ends_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO customers (name, email, oauth_provider, oauth_id, profile_picture, trial_ends_at, subscription_status)
+                VALUES (?, ?, ?, ?, ?, ?, 'trial')
             ");
             $stmt->execute([$name, $email, $provider, $providerId, $profilePicture, $trialEndsAt]);
             
             $customerId = $db->lastInsertId();
             $isNew = true;
+        }
+        
+        // Store LinkedIn access token separately if provided
+        if ($provider === 'linkedin' && !empty($userData['access_token'])) {
+            try {
+                // Check if oauth_tokens table exists
+                $tableCheck = $db->query("SHOW TABLES LIKE 'oauth_tokens'");
+                
+                if ($tableCheck->rowCount() > 0) {
+                    // Use oauth_tokens table
+                    $stmt = $db->prepare("
+                        INSERT INTO oauth_tokens (customer_id, provider, access_token, refresh_token, token_type, expires_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                        access_token = VALUES(access_token),
+                        refresh_token = VALUES(refresh_token),
+                        token_type = VALUES(token_type),
+                        expires_at = VALUES(expires_at)
+                    ");
+                    
+                    $expiresAt = isset($userData['expires_in']) 
+                        ? date('Y-m-d H:i:s', time() + $userData['expires_in']) 
+                        : null;
+                    
+                    $stmt->execute([
+                        $customerId,
+                        'linkedin',
+                        $userData['access_token'],
+                        $userData['refresh_token'] ?? null,
+                        $userData['token_type'] ?? 'Bearer',
+                        $expiresAt
+                    ]);
+                } else {
+                    // Fallback: store in customers table if columns exist
+                    $stmt = $db->prepare("
+                        UPDATE customers 
+                        SET linkedin_access_token = ?
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$userData['access_token'], $customerId]);
+                }
+            } catch (Exception $e) {
+                error_log("Failed to store LinkedIn token: " . $e->getMessage() . " | Customer: $customerId ($email) | IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " | User Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
+                // Don't throw - allow login to continue even if token storage fails
+            }
         }
         
         // Set session
@@ -406,9 +460,10 @@ function createOrUpdateOAuthCustomer($provider, $userData) {
         $_SESSION['customer_name'] = $name;
         
         // Log activity
-        logCustomerActivity($customerId, $isNew ? 'oauth_signup' : 'oauth_login', 
-                           "Account accessed via $provider", $_SERVER['REMOTE_ADDR'] ?? '', 
-                           $_SERVER['HTTP_USER_AGENT'] ?? '');
+        if (function_exists('logCustomerActivity')) {
+            logCustomerActivity($customerId, $isNew ? 'oauth_signup' : 'oauth_login', 
+                               "Account accessed via $provider");
+        }
         
         $db->commit();
         
@@ -422,29 +477,6 @@ function createOrUpdateOAuthCustomer($provider, $userData) {
     } catch (Exception $e) {
         $db->rollBack();
         throw new Exception('Failed to create/update customer: ' . $e->getMessage());
-    }
-}
-
-if (!function_exists('logCustomerActivity')) {
-    function logCustomerActivity($customerId, $action, $details = '') {
-        global $db;
-        
-        try {
-            $stmt = $db->prepare("
-                INSERT INTO customer_activity_logs (customer_id, action, details, ip_address, user_agent, created_at) 
-                VALUES (?, ?, ?, ?, ?, NOW())
-            ");
-            
-            $stmt->execute([
-                $customerId,
-                $action,
-                $details,
-                $_SERVER['REMOTE_ADDR'] ?? '',
-                $_SERVER['HTTP_USER_AGENT'] ?? ''
-            ]);
-        } catch (Exception $e) {
-            error_log("Error logging customer activity: " . $e->getMessage());
-        }
     }
 }
 
