@@ -15,7 +15,7 @@ if (!isset($db)) {
     require_once __DIR__ . '/database-config.php';
 }
 
-// OAuth Configuration - prioritize database values, fallback to hardcoded values
+// OAuth Configuration - fetch from api_settings table
 $oauthSettings = [];
 try {
     if (isset($db) && $db) {
@@ -35,47 +35,41 @@ try {
     }
 } catch (Exception $e) {
     error_log('OAuth settings error: ' . $e->getMessage());
-    // Continue with empty settings - will use fallback values
+    die('ERROR: Unable to load OAuth settings from database. Please contact administrator.');
 }
 
-// Google OAuth Configuration
-// Use database values if available and not empty, otherwise use hardcoded values
+// Google OAuth Configuration - Fetch from database only
 if (!defined('GOOGLE_CLIENT_ID')) {
-    define('GOOGLE_CLIENT_ID', 
-        (!empty($oauthSettings['google_oauth_client_id'])) 
-            ? $oauthSettings['google_oauth_client_id'] 
-            : 'YOUR_GOOGLE_CLIENT_ID'  // Fallback value
-    );
+    if (empty($oauthSettings['google_client_id'])) {
+        die('ERROR: Google Client ID not configured. Please add it in Admin Panel → API Settings.');
+    }
+    define('GOOGLE_CLIENT_ID', $oauthSettings['google_client_id']);
 }
 
 if (!defined('GOOGLE_CLIENT_SECRET')) {
-    define('GOOGLE_CLIENT_SECRET', 
-        (!empty($oauthSettings['google_oauth_client_secret'])) 
-            ? $oauthSettings['google_oauth_client_secret'] 
-            : 'YOUR_GOOGLE_CLIENT_SECRET'  // Fallback value
-    );
+    if (empty($oauthSettings['google_client_secret'])) {
+        die('ERROR: Google Client Secret not configured. Please add it in Admin Panel → API Settings.');
+    }
+    define('GOOGLE_CLIENT_SECRET', $oauthSettings['google_client_secret']);
 }
 
 if (!defined('GOOGLE_REDIRECT_URI')) {
     define('GOOGLE_REDIRECT_URI', SITE_URL . '/customer/oauth/google-callback.php');
 }
 
-// LinkedIn OAuth Configuration
-// Use database values if available and not empty, otherwise use hardcoded values
+// LinkedIn OAuth Configuration - Fetch from database only
 if (!defined('LINKEDIN_CLIENT_ID')) {
-    define('LINKEDIN_CLIENT_ID', 
-        (!empty($oauthSettings['linkedin_client_id'])) 
-            ? $oauthSettings['linkedin_client_id'] 
-            : 'YOUR_LINKEDIN_CLIENT_ID'  // Fallback value
-    );
+    if (empty($oauthSettings['linkedin_client_id'])) {
+        die('ERROR: LinkedIn Client ID not configured. Please add it in Admin Panel → API Settings.');
+    }
+    define('LINKEDIN_CLIENT_ID', $oauthSettings['linkedin_client_id']);
 }
 
 if (!defined('LINKEDIN_CLIENT_SECRET')) {
-    define('LINKEDIN_CLIENT_SECRET', 
-        (!empty($oauthSettings['linkedin_client_secret'])) 
-            ? $oauthSettings['linkedin_client_secret'] 
-            : 'YOUR_LINKEDIN_CLIENT_SECRET'  // Fallback value
-    );
+    if (empty($oauthSettings['linkedin_client_secret'])) {
+        die('ERROR: LinkedIn Client Secret not configured. Please add it in Admin Panel → API Settings.');
+    }
+    define('LINKEDIN_CLIENT_SECRET', $oauthSettings['linkedin_client_secret']);
 }
 
 if (!defined('LINKEDIN_REDIRECT_URI')) {
@@ -454,23 +448,23 @@ function getOAuthCredentialsSource() {
     $sources = [];
     
     // Check Google credentials
-    if (!empty($oauthSettings['google_oauth_client_id'])) {
+    if (!empty($oauthSettings['google_client_id'])) {
         $sources['google'] = 'database';
     } else {
-        $sources['google'] = 'hardcoded';
+        $sources['google'] = 'not_configured';
     }
     
     // Check LinkedIn credentials
     if (!empty($oauthSettings['linkedin_client_id'])) {
         $sources['linkedin'] = 'database';
     } else {
-        $sources['linkedin'] = 'hardcoded';
+        $sources['linkedin'] = 'not_configured';
     }
     
     return $sources;
 }
 
-// Clean expired states things
+// Clean expired states
 function cleanExpiredOAuthStates() {
     ensureSession();
     
