@@ -380,17 +380,26 @@ function createOrUpdateOAuthCustomer($provider, $userData) {
     }
 }
 
-function logCustomerActivity($customerId, $action, $details = null, $ipAddress = null, $userAgent = null) {
-    global $db;
-    
-    try {
-        $stmt = $db->prepare("
-            INSERT INTO customer_activity_logs (customer_id, action, details, ip_address, user_agent)
-            VALUES (?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([$customerId, $action, $details, $ipAddress, $userAgent]);
-    } catch (Exception $e) {
-        error_log("Failed to log customer activity: " . $e->getMessage());
+if (!function_exists('logCustomerActivity')) {
+    function logCustomerActivity($customerId, $action, $details = '') {
+        global $db;
+        
+        try {
+            $stmt = $db->prepare("
+                INSERT INTO customer_activity_logs (customer_id, action, details, ip_address, user_agent, created_at) 
+                VALUES (?, ?, ?, ?, ?, NOW())
+            ");
+            
+            $stmt->execute([
+                $customerId,
+                $action,
+                $details,
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                $_SERVER['HTTP_USER_AGENT'] ?? ''
+            ]);
+        } catch (Exception $e) {
+            error_log("Error logging customer activity: " . $e->getMessage());
+        }
     }
 }
 
