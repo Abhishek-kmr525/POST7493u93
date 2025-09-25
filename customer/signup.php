@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // Enable detailed error reporting at the very top
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -539,4 +540,5 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 </style>
 
-<?php require_once '../includes/footer.php'; ?>
+<?php require_once '../includes/footer.php'; 
+ob_end_flush();?>
