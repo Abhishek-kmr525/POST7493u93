@@ -48,6 +48,8 @@ try {
     
     echo "\nStep 4: Testing OAuth config include\n";
     try {
+        echo "Before including OAuth config - db variable exists: " . (isset($db) ? "Yes" : "No") . "\n";
+        
         require_once $oauthPath;
         echo "OAuth config included successfully\n";
         
@@ -55,9 +57,30 @@ try {
         $requiredConstants = ['GOOGLE_CLIENT_ID', 'LINKEDIN_CLIENT_ID'];
         foreach ($requiredConstants as $constant) {
             echo "$constant defined: " . (defined($constant) ? "Yes" : "No") . "\n";
+            if (defined($constant)) {
+                $value = constant($constant);
+                echo "$constant is " . (empty($value) ? "empty" : "set") . "\n";
+            }
         }
+        
+        // Check if api_settings table exists and has data
+        try {
+            if (isset($db)) {
+                $stmt = $db->query("SELECT COUNT(*) FROM api_settings");
+                $count = $stmt->fetchColumn();
+                echo "\nAPI Settings records count: $count\n";
+                
+                $stmt = $db->query("SELECT * FROM api_settings LIMIT 1");
+                $settings = $stmt->fetch(PDO::FETCH_ASSOC);
+                echo "OAuth settings in database: " . (!empty($settings) ? "Found" : "Not found") . "\n";
+            }
+        } catch (PDOException $e) {
+            echo "Error checking API settings: " . $e->getMessage() . "\n";
+        }
+        
     } catch (Throwable $e) {
         echo "Error including OAuth config: " . $e->getMessage() . "\n";
+        echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
     }
     
     echo "\nStep 5: Environment Variables\n";

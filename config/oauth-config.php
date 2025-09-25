@@ -1,6 +1,10 @@
 <?php
 // config/oauth-config.php - Enhanced OAuth Configuration with Database Integration
-require_once 'database-config.php';
+
+// Skip database include if already included
+if (!isset($db)) {
+    require_once __DIR__ . '/database-config.php';
+}
 
 // OAuth Configuration - prioritize database values, fallback to hardcoded values
 $oauthSettings = [];
