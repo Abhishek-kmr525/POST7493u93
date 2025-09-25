@@ -134,8 +134,16 @@ if (isset($_POST['test_api'])) {
 }
 
 ?>
-<?php $pageTitle = 'Credentials'; ?>
-<?php require_once 'includes/admin-header.php'; ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Credentials - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container py-4">
     <h1 class="mb-3">Credentials</h1>
     <?php if ($message): ?>
         <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
@@ -200,6 +208,7 @@ if (isset($_POST['test_api'])) {
     </form>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
 <script>
 function toggle(id){
     const el = document.getElementById(id);
@@ -223,4 +232,5 @@ function testAPI(provider) {
         .catch(e => alert('❌ ' + e.message));
 }
 </script>
-<?php require_once 'includes/admin-footer.php'; ?>
+</body>
+</html>

@@ -1,10 +1,16 @@
 <?php
+// Enable error reporting for development
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // admin/login.php
 session_start();
 require_once '../config/database-config.php';
 
 $pageTitle = 'Admin Login - LinkedIn Automation Admin';
 $error = '';
+$totalAutomations = 0; // Initialize variables
+$activeAutomations = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
