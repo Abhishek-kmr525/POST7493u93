@@ -2,9 +2,22 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// Debug path information
+$basePath = dirname(__DIR__);
+$configPath = $basePath . '/config/database-config.php';
+$oauthPath = $basePath . '/config/oauth-config.php';
+
+if (!file_exists($configPath)) {
+    die('Database config file not found. Looking in: ' . $configPath);
+}
+if (!file_exists($oauthPath)) {
+    die('OAuth config file not found. Looking in: ' . $oauthPath);
+}
+
 // customer/login.php - Fixed version
-require_once '../config/database-config.php';
-require_once '../config/oauth-config.php';
+require_once $configPath;
+require_once $oauthPath;
 
 $pageTitle = 'Login - ' . SITE_NAME;
 $pageDescription = 'Login to your LinkedIn automation account';
