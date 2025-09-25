@@ -4,7 +4,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 // admin/customers.php
 session_start();
-require_once '/../config/database-config.php';
+require_once '../config/database-config.php';
 require_once 'includes/admin-auth.php'; // Ensure admin is logged in
 
 $pageTitle = 'Manage Customers - Admin Panel';
