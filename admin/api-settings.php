@@ -27,6 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $chatgptApiKey = trim($_POST['chatgpt_api_key'] ?? '');
     $linkedinClientId = trim($_POST['linkedin_client_id'] ?? '');
     $linkedinClientSecret = trim($_POST['linkedin_client_secret'] ?? '');
+    $googleClientId = trim($_POST['google_client_id'] ?? '');
+    $googleClientSecret = trim($_POST['google_client_secret'] ?? '');
     $razorpayKeyId = trim($_POST['razorpay_key_id'] ?? '');
     $razorpayKeySecret = trim($_POST['razorpay_key_secret'] ?? '');
     $webhookSecret = trim($_POST['webhook_secret'] ?? '');
@@ -40,14 +42,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $db->prepare("
             INSERT INTO api_settings (
                 id, gemini_api_key, chatgpt_api_key, linkedin_client_id, 
-                linkedin_client_secret, razorpay_key_id, razorpay_key_secret,
+                linkedin_client_secret, google_client_id, google_client_secret, 
+                razorpay_key_id, razorpay_key_secret,
                 webhook_secret, smtp_host, smtp_port, smtp_username, smtp_password, updated_at
-            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE
                 gemini_api_key = VALUES(gemini_api_key),
                 chatgpt_api_key = VALUES(chatgpt_api_key),
                 linkedin_client_id = VALUES(linkedin_client_id),
                 linkedin_client_secret = VALUES(linkedin_client_secret),
+                google_client_id = VALUES(google_client_id),
+                google_client_secret = VALUES(google_client_secret),
                 razorpay_key_id = VALUES(razorpay_key_id),
                 razorpay_key_secret = VALUES(razorpay_key_secret),
                 webhook_secret = VALUES(webhook_secret),
@@ -60,7 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $success = $stmt->execute([
             $geminiApiKey, $chatgptApiKey, $linkedinClientId,
-            $linkedinClientSecret, $razorpayKeyId, $razorpayKeySecret,
+            $linkedinClientSecret, $googleClientId, $googleClientSecret, 
+            $razorpayKeyId, $razorpayKeySecret,
             $webhookSecret, $smtpHost, $smtpPort, $smtpUsername, $smtpPassword
         ]);
         
@@ -660,6 +666,51 @@ if (isset($_POST['test_api'])) {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Google OAuth Section -->
+                    <div class="api-section">
+                        <div class="api-section-header">
+                            <div class="d-flex align-items-center">
+                                <div class="api-icon" style="background: linear-gradient(135deg, #4285F4, #DB4437, #F4B400, #0F9D58);">
+                                    <i class="fab fa-google"></i>
+                                </div>
+                                <div>
+                                    <h4 class="fw-bold mb-1">Google OAuth Integration</h4>
+                                    <p class="text-muted mb-0">Configure Google API for authentication & services</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="api-section-body">
+                            <div class="row">
+                                <div class="col-lg-6 mb-3">
+                                    <label class="form-label fw-semibold">Client ID</label>
+                                    <input type="text" class="form-control" name="google_client_id" 
+                                           placeholder="Enter Google Client ID"
+                                           value="<?php echo htmlspecialchars($settings['google_client_id'] ?? ''); ?>">
+                                </div>
+                                <div class="col-lg-6 mb-3">
+                                    <label class="form-label fw-semibold">Client Secret</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" name="google_client_secret" 
+                                               id="google_client_secret" placeholder="Enter Google Client Secret"
+                                               value="<?php echo htmlspecialchars($settings['google_client_secret'] ?? ''); ?>">
+                                        <button class="btn btn-outline-secondary password-toggle" type="button" 
+                                                onclick="togglePassword('google_client_secret')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Setup Instructions:</strong> Create a project at 
+                                <a href="https://console.developers.google.com/" target="_blank" class="text-decoration-none">
+                                    Google Cloud Console <i class="fas fa-external-link-alt"></i>
+                                </a> and configure OAuth 2.0 credentials.
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Payment Integration Section -->
                     <div class="api-section">
@@ -1017,22 +1068,17 @@ if (isset($_POST['test_api'])) {
         
         // Form validation
         document.getElementById('apiSettingsForm').addEventListener('submit', function(e) {
-            const requiredFields = ['gemini_api_key', 'chatgpt_api_key'];
-            let hasError = false;
+            const geminiKey = document.querySelector('[name="gemini_api_key"]').value.trim();
+            const chatgptKey = document.querySelector('[name="chatgpt_api_key"]').value.trim();
             
-            requiredFields.forEach(fieldName => {
-                const field = document.querySelector(`[name="${fieldName}"]`);
-                if (!field.value.trim()) {
-                    field.classList.add('is-invalid');
-                    hasError = true;
-                } else {
-                    field.classList.remove('is-invalid');
-                }
-            });
-            
-            if (hasError) {
+            if (!geminiKey && !chatgptKey) {
                 e.preventDefault();
+                document.querySelector('[name="gemini_api_key"]').classList.add('is-invalid');
+                document.querySelector('[name="chatgpt_api_key"]').classList.add('is-invalid');
                 alert('Please fill in at least one AI service API key before saving.');
+            } else {
+                document.querySelector('[name="gemini_api_key"]').classList.remove('is-invalid');
+                document.querySelector('[name="chatgpt_api_key"]').classList.remove('is-invalid');
             }
         });
         
