@@ -1,8 +1,29 @@
 <?php
-// Enable detailed error reporting
+// Enable detailed error reporting at the very top
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// Register a shutdown function to catch fatal errors
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR])) {
+        // Clean any previous output
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        
+        // Display a formatted error message
+        echo "<pre style='background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px;'>";
+        echo "<strong>Fatal Error Occurred:</strong>\n\n";
+        echo "<strong>Type:</strong> " . $error['type'] . "\n";
+        echo "<strong>Message:</strong> " . htmlspecialchars($error['message']) . "\n";
+        echo "<strong>File:</strong> " . htmlspecialchars($error['file']) . "\n";
+        echo "<strong>Line:</strong> " . $error['line'] . "\n";
+        echo "</pre>";
+        exit;
+    }
+});
 
 // Start output buffering to catch any errors
 ob_start();
