@@ -4,22 +4,50 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Debug path information
-$basePath = dirname(__DIR__);
-$configPath = $basePath . '/config/database-config.php';
-$oauthPath = $basePath . '/config/oauth-config.php';
+// Start output buffering to catch any errors
+ob_start();
 
-// Check if config files exist
-if (!file_exists($configPath)) {
-    die('Database config file not found. Looking in: ' . $configPath);
-}
-if (!file_exists($oauthPath)) {
-    die('OAuth config file not found. Looking in: ' . $oauthPath);
-}
+try {
+    // Debug path information
+    $basePath = dirname(__DIR__);
+    $configPath = $basePath . '/config/database-config.php';
+    $oauthPath = $basePath . '/config/oauth-config.php';
 
-// Include required files with absolute paths
-require_once $configPath;
-require_once $oauthPath;
+    // Check if config files exist and are readable
+    if (!is_readable($configPath)) {
+        throw new Exception('Database config file not readable or not found at: ' . $configPath);
+    }
+    if (!is_readable($oauthPath)) {
+        throw new Exception('OAuth config file not readable or not found at: ' . $oauthPath);
+    }
+
+    // Include required files with absolute paths
+    require_once $configPath;
+    
+    // Verify database connection
+    if (!isset($db)) {
+        throw new Exception('Database connection not initialized after including config');
+    }
+    
+    // Test database connection
+    try {
+        $db->query('SELECT 1');
+    } catch (PDOException $e) {
+        throw new Exception('Database connection failed: ' . $e->getMessage());
+    }
+    
+    require_once $oauthPath;
+
+} catch (Throwable $e) {
+    // Log the error
+    error_log("Signup error: " . $e->getMessage());
+    
+    // In development, show the error
+    die('<pre>Error: ' . htmlspecialchars($e->getMessage()) . "\n" . 
+        'File: ' . htmlspecialchars($e->getFile()) . "\n" . 
+        'Line: ' . $e->getLine() . "\n" . 
+        'Trace: ' . htmlspecialchars($e->getTraceAsString()) . '</pre>');
+}
 
 $pageTitle = 'Sign Up - ' . SITE_NAME;
 $pageDescription = 'Create your LinkedIn automation account';
