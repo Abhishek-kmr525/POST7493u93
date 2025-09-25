@@ -7,6 +7,13 @@ ini_set('display_errors', 1);
 session_start();
 require_once '../config/database-config.php';
 
+// Test database connection
+try {
+    $testStmt = $db->query("SELECT 1");
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
+
 $pageTitle = 'Admin Login - LinkedIn Automation Admin';
 $error = '';
 $totalAutomations = 0; // Initialize variables
