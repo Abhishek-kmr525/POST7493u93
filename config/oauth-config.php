@@ -268,17 +268,39 @@ function getGoogleUserInfo($accessToken) {
 }
 
 function getLinkedInUserInfo($accessToken) {
-    // Get profile info
-    $profileUrl = 'https://api.linkedin.com/v2/people/~?projection=(id,firstName,lastName,profilePicture(displayImage~:playableStreams))';
-    $profile = makeLinkedInApiRequest($profileUrl, $accessToken);
+    // Use OpenID Connect userinfo endpoint instead of deprecated v2 API
+    $url = 'https://api.linkedin.com/v2/userinfo';
     
-    // Get email
-    $emailUrl = 'https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))';
-    $email = makeLinkedInApiRequest($emailUrl, $accessToken);
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $accessToken],
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
     
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        error_log("LinkedIn userinfo failed: HTTP $httpCode - $response");
+        throw new Exception("LinkedIn user info request failed with HTTP $httpCode: $response");
+    }
+    
+    $result = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception("Invalid JSON response from LinkedIn userinfo: " . json_last_error_msg());
+    }
+    
+    // Return normalized structure
     return [
-        'profile' => $profile,
-        'email' => $email
+        'id' => $result['sub'] ?? '',
+        'email' => $result['email'] ?? '',
+        'name' => $result['name'] ?? '',
+        'given_name' => $result['given_name'] ?? '',
+        'family_name' => $result['family_name'] ?? '',
+        'picture' => $result['picture'] ?? ''
     ];
 }
 
@@ -319,21 +341,18 @@ function createOrUpdateOAuthCustomer($provider, $userData) {
         $providerId = '';
         $profilePicture = '';
         
-        if ($provider === 'google') {
-            $email = $userData['email'] ?? '';
-            $name = $userData['name'] ?? '';
-            $providerId = $userData['id'] ?? '';
-            $profilePicture = $userData['picture'] ?? '';
-        } elseif ($provider === 'linkedin') {
-            $emailData = $userData['email']['elements'][0]['handle~']['emailAddress'] ?? '';
-            $firstName = $userData['profile']['firstName']['localized']['en_US'] ?? '';
-            $lastName = $userData['profile']['lastName']['localized']['en_US'] ?? '';
-            $email = $emailData;
-            $name = trim("$firstName $lastName");
-            $providerId = $userData['profile']['id'] ?? '';
-            $profilePicture = $userData['profile']['profilePicture']['displayImage~']['elements'][0]['identifiers'][0]['identifier'] ?? '';
-        }
-        
+       if ($provider === 'google') {
+    $email = $userData['email'] ?? '';
+    $name = $userData['name'] ?? '';
+    $providerId = $userData['id'] ?? '';
+    $profilePicture = $userData['picture'] ?? '';
+} elseif ($provider === 'linkedin') {
+    // NEW: Handle OpenID Connect format
+    $email = $userData['email'] ?? '';
+    $name = $userData['name'] ?? '';
+    $providerId = $userData['id'] ?? '';
+    $profilePicture = $userData['picture'] ?? '';
+}
         if (empty($email)) {
             throw new Exception('Email not provided by OAuth provider');
         }
