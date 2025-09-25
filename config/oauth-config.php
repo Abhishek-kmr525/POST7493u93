@@ -81,7 +81,7 @@ function ensureSession() {
     if (session_status() === PHP_SESSION_NONE) {
         session_start([
             'cookie_lifetime' => 3600,
-            'cookie_secure' => false, // Set to true in production with HTTPS
+            'cookie_secure' => true,  // Changed to true for HTTPS
             'cookie_httponly' => true,
             'cookie_samesite' => 'Lax'
         ]);
@@ -95,6 +95,12 @@ function generateSecureState() {
 function validateState($receivedState) {
     ensureSession();
     
+    // Check if state exists
+    if (empty($receivedState)) {
+        error_log("OAuth Error: No state parameter received");
+        return false;
+    }
+    
     // Check session state
     $sessionState = $_SESSION['oauth_state'] ?? null;
     $sessionTimestamp = $_SESSION['oauth_timestamp'] ?? 0;
@@ -102,15 +108,29 @@ function validateState($receivedState) {
     // Check cookie state as fallback
     $cookieState = $_COOKIE['oauth_state'] ?? null;
     
+    // Debug logging
+    error_log("Received state: " . substr($receivedState, 0, 20) . "...");
+    error_log("Session state: " . ($sessionState ? substr($sessionState, 0, 20) . "..." : "NONE"));
+    error_log("Cookie state: " . ($cookieState ? substr($cookieState, 0, 20) . "..." : "NONE"));
+    
     // State must match either session or cookie
     $stateValid = ($receivedState === $sessionState) || ($receivedState === $cookieState);
     
-    // Check timestamp (max 1 hour)
-    $timestampValid = (time() - $sessionTimestamp) < 3600;
+    // Check timestamp (max 1 hour) - only if session state exists
+    $timestampValid = true;
+    if ($sessionState && $sessionTimestamp > 0) {
+        $timestampValid = (time() - $sessionTimestamp) < 3600;
+        if (!$timestampValid) {
+            error_log("OAuth Error: State timestamp expired. Age: " . (time() - $sessionTimestamp) . " seconds");
+        }
+    }
+    
+    if (!$stateValid) {
+        error_log("OAuth Error: State mismatch");
+    }
     
     return $stateValid && $timestampValid;
 }
-
 function clearOAuthState() {
     ensureSession();
     unset($_SESSION['oauth_state']);
@@ -149,19 +169,18 @@ function getLinkedInLoginUrl() {
     $_SESSION['oauth_timestamp'] = time();
     
     // Set cookie as fallback
-    setcookie('oauth_state', $state, time() + 3600, '/', '', false, true);
+    setcookie('oauth_state', $state, time() + 3600, '/', '', true, true);
     
     $params = [
         'response_type' => 'code',
         'client_id' => LINKEDIN_CLIENT_ID,
         'redirect_uri' => LINKEDIN_REDIRECT_URI,
-        'scope' => 'openid profile email w_member_social',
+        'scope' => 'openid profile email',  // REMOVED w_member_social - it requires special approval
         'state' => $state
     ];
     
     return 'https://www.linkedin.com/oauth/v2/authorization?' . http_build_query($params);
 }
-
 function exchangeGoogleCodeForToken($code) {
     $data = [
         'client_id' => GOOGLE_CLIENT_ID,
