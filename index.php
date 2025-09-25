@@ -3,8 +3,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 
+
 // index.php
-require_once '/config/database-config.php';
+require_once 'config/database-config.php';
 
 $pageTitle = 'LinkedIn Automation Tool - Automate Your LinkedIn Presence with AI';
 $pageDescription = 'Generate and schedule LinkedIn posts automatically using ChatGPT and Gemini AI. Available in USA and India with localized pricing.';

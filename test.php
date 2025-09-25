@@ -1,6 +1,6 @@
 <?php
 // debug/check-linkedin-tokens.php - Debug script to check tokens
-require_once '/config/database-config.php';
+require_once 'config/database-config.php';
 
 // Check if user is logged in
 if (!isCustomerLoggedIn()) {

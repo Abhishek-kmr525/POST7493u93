@@ -1,6 +1,6 @@
 <?php
 // change-country.php - Handle country switching
-require_once '/config/database-config.php';
+require_once 'config/database-config.php';
 
 header('Content-Type: application/json');
 
